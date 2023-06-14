@@ -1,0 +1,339 @@
+<ROSETTASCRIPTS>
+# Last updated by Isaac Lutz (ilutz@uw.edu) sometime in 2020
+# just does loops
+	
+# Includes comp
+# Updated by Basile Wicky (basile.wicky@gmail.com) on 190625
+
+	#############################
+	# The score function section defines scorefunctions that will be used in Filters and Movers. 
+	# This can be used to define any of the scores defined in the path/to/rosetta/main/database.
+	<SCOREFXNS>
+		
+		<ScoreFunction name="scrfxn" weights="beta_nov16"> # Use REF15 with November 16 update
+		Reweight scoretype="coordinate_constraint" weight="1.0"/> # For use in conjunction with AddConstraintsToCurrentConformationMover and use_distance_cst="False"
+		<Reweight scoretype="atom_pair_constraint" weight="1.0"/> # For use in conjunction with AddConstraintsToCurrentConformationMover and use_distance_cst="True"
+		Reweight scoretype="hbnet" weight="1.0" /> Use Vikram's hbnet scoring term to favour HBNet (without the need to do Scott's HBNet, therefore compatible with other 'paker'-like movers). Recommended weights are 1.0-10.0 otherwise network will be at the expense of other score terms
+		Set hbnet_bonus_function_ramping="logarithmic" /> # Function determining the bonus ramping for larger networks in hbnet (default=quadratic, others=linear, squareroot)
+        <Reweight scoretype="buried_unsatisfied_penalty" weight="1.0" /> # Weight ranging from 0.1 to 1.0. This will penalize hydrogen bond networks that have unsatisfied hydrogen bond donors or acceptors in the core
+        <Reweight scoretype="res_type_constraint" weight="2"/> # Must have this in for loop design
+	<Reweight scoretype="aa_composition" weight="1.0" /> # for aa comp mover
+
+		Reweight scoretype="aa_composition" weight="1.0" /> # for aa comp mover
+		</ScoreFunction>
+		
+		<ScoreFunction name="scrfxn_filter" weights="beta_nov16"/> # score function without weights for output
+
+		<ScoreFunction name="up_ele" weights="beta_nov16"> # for designing surface
+        <Reweight scoretype="fa_elec" weight="1.4"/>
+        <Reweight scoretype="hbond_sc" weight="2.0" />
+        <Reweight scoretype="buried_unsatisfied_penalty" weight="1.0" />
+        <Reweight scoretype="res_type_constraint" weight="2"/> # Must have this in for loop design
+      	</ScoreFunction>
+
+	</SCOREFXNS>
+	#############################
+
+
+	#############################
+	# ResidueSelectors are used by movers, filters and task operations to dynamically select residues at run-time. 
+	# They are used to specify sets of residues based on multiple different properties.
+	<RESIDUE_SELECTORS>
+		
+		# The LayerSelector lets a user select residues by burial. 
+		# Burial can be assessed by number of sidechain neighbors within a cone along the CA-CB vector (the default method), or by SASA
+		<Layer name="surface" select_core="false" select_boundary="false" select_surface="true" use_sidechain_neighbors="true" core_cutoff="3" surface_cutoff="1.5"/> # ASK HUGH FOR GABE's CUTOFF
+		<Layer name="boundary" select_core="false" select_boundary="true" select_surface="false" use_sidechain_neighbors="true" core_cutoff="3" surface_cutoff="1.5"/>
+		<Layer name="core" select_core="true" select_boundary="false" select_surface="false" use_sidechain_neighbors="true" core_cutoff="3" surface_cutoff="1.5"/>
+		
+
+		<Layer name="surface_sasa" select_core="false" select_boundary="false" select_surface="true" use_sidechain_neighbors="false" core_cutoff="30" surface_cutoff="38"/> # TIM'S NUMBERS FOR HIS HELICES
+		<Layer name="boundary_sasa" select_core="false" select_boundary="true" select_surface="false" use_sidechain_neighbors="false" core_cutoff="30" surface_cutoff="38"/>
+		<Layer name="core_sasa" select_core="true" select_boundary="false" select_surface="false" use_sidechain_neighbors="false" core_cutoff="30" surface_cutoff="38"/>
+
+
+
+		<Not name="not_surface" selector="surface" />
+		<Not name="not_boundary" selector="boundary" />
+		<Not name="not_core" selector="core" />
+
+
+		<Not name="not_surface_sasa" selector="surface_sasa" />
+		<Not name="not_boundary_sasa" selector="boundary_sasa" />
+		<Not name="not_core_sasa" selector="core_sasa" />
+
+		# SecondaryStructureSelector selects all residues with given secondary structure
+		<SecondaryStructure name="entire_helix" overlap="0" minH="3" minE="2" include_terminal_loops="false" use_dssp="true" ss="H" />
+		<SecondaryStructure name="sheet" overlap="0" minH="3" minE="2" include_terminal_loops="false" use_dssp="true" ss="E" />
+		<SecondaryStructure name="entire_loop" overlap="0" minH="3" minE="2" include_terminal_loops="true" use_dssp="true" ss="L" />
+		
+		<And name="helix_cap" selectors="entire_loop"> # Define a helix cap selection for layer design (C-term)
+			<PrimarySequenceNeighborhood lower="1" upper="0" selector="entire_helix"/>
+		</And>
+		<And name="helix_start" selectors="entire_helix"> # Define a helix start selection for layer design (N-term)
+			<PrimarySequenceNeighborhood lower="0" upper="1" selector="helix_cap"/>
+		</And>
+		<And name="helix" selectors="entire_helix"> # Define helix without its caps
+			<Not selector="helix_start"/>
+		</And>
+		<And name="loop" selectors="entire_loop"> # Define loop without helix caps
+			<Not selector="helix_cap"/>
+		</And>
+
+		<Neighborhood name="around_loop" distance="8.0" selector="entire_loop"/>
+		<Not name="not_around_loop" selector="around_loop"/>
+		
+		<Or name="loop_and_around" selectors="loop,around_loop"/>
+		<Not name="not_loop_and_around" selector="loop_and_around"/>
+
+		<Or name="loop_and_caps" selectors="loop,helix_start,helix_cap"/>
+
+		<!--
+		<Chain name="chA" chains="A"/> # Select chain A from input structure
+		<Chain name="chB" chains="B"/> # Select chain B from input structure
+		<Chain name="chC" chains="C"/> # Select chain C from input structure
+		<Chain name="chD" chains="D"/> # Select chain D from input structure
+		<Chain name="chE" chains="E"/> # Select chain E from input structure - the new helix
+		
+		<Or name="zcon_chains" selectors="chA,chB,chC,chD"/> # Select original zcon chains (i.e. all the chains from the input structure)
+		<Not name="buttress_helix" selector="zcon_chains"/> # Selects newly generated buttress helix
+		
+		# Define interface based on CA-CB vectors
+		<InterfaceByVector name="new_interface" grp1_selector="zcon_chains" grp2_selector="buttress_helix"/> # Select residues forming the new interface between the buttressing helix and the original ZCON input. If cb_dist_cut=0, selection logic based on direct contact is not sufficient, and requires the vector criteria as well.
+		<Not name="not_interface" selector="new_interface"/>
+
+		# Define original HBNet interface after reloopoing
+		<Or name="zcon_chains_not_touched" selectors="chB,chC"/> # chain number after relooping
+		<InterfaceByVector name="hbnet_interface" grp1_selector="chA" grp2_selector="zcon_chains_not_touched"/>
+
+		# For initial design of the new interface before adding the loops
+		<Or name="designable" selectors="new_interface,buttress_helix"/> # Define which parts of the proteins will be affected during the design
+		<Not name="not_designable" selector="designable"/> # Define which parts of the proteins will be kept constant (i.e. everything that is not designed)
+
+		<SSElement name="new_helix" selection="1,H" chain="A"/>
+		<Not name="not_new_helix" selector="new_helix"/>
+			
+		# For fast design after relooping
+		<Chain name="looped_chain" chains="A"/>
+		<Or name="not_designable_final" selectors="hbnet_interface,zcon_chains_not_touched"/>
+		<Not name="designable_final" selector="not_designable_final"/>
+		-->
+	
+		<Chain name="chA" chains="A"/> # Select chain A from input structure
+		<Chain name="chB" chains="B"/> # Select chain B from input structure
+		<Chain name="chC" chains="C"/> # Select chain B from input structure
+		<Chain name="chD" chains="D"/> # Select chain B from input structure
+		<Chain name="chE" chains="E"/> # Select chain B from input structure
+	</RESIDUE_SELECTORS>
+	###############################
+
+
+
+	###############################
+	# TaskOperations are used by movers to tell the "packer" which residues/rotamers to use in reorganizing/mutating sidechains.
+	# When used by certain Movers, the TaskOperations control what happens during packing, usually by restriction "masks".
+	# TaskOperations can also be used by movers to specify sets of residues to act upon in non-packer contexts.
+	<TASKOPERATIONS>
+		
+		<IncludeCurrent name="current"/> # Tell the packer to also consider the input rotamer.
+		<LimitAromaChi2 name="arochi" /> # Prevents use the rotamers of PHE, TYR and HIS that have chi2 far from 90. These rotamers are acceptable to the Dunbrack energy term due to smoothing of the energy landscape but not actually physically common without some other rearrangements Rosetta fails to capture.
+		<ExtraRotamersGeneric name="ex1_ex2" ex1="1" ex2="1"/> # Add increased sampling for chi1 and chi2 rotamers
+		<ExtraRotamersGeneric name="ex1_ex2aro" ex1="1" ex2aro="1"/> # Add increased sampling for chi1 and chi2 rotamers
+		<DesignRestrictions name="layer_design"> # Define residues that are allowed at the different parts of the protein (based on layers definition)
+			<Action selector_logic="surface AND helix_start"	aas="DEPNQS"/>
+			<Action selector_logic="surface AND helix"			aas="EHKQR"/>
+			<Action selector_logic="surface AND sheet"			aas="EHKNQRST"/>
+			<Action selector_logic="surface AND loop"			aas="DEGHKNPQRST"/>
+			<Action selector_logic="boundary AND helix_start"	aas="DEPNQS"/>
+			<Action selector_logic="boundary AND helix"			aas="ADEHIKLMNQRSTV"/>
+			<Action selector_logic="boundary AND sheet"			aas="DEFHIKLMNQRSTVY"/>
+			<Action selector_logic="boundary AND loop"			aas="ADEFGHIKLMNPQRSTV"/>
+			<Action selector_logic="core AND helix_start"		aas="DEPNQS"/>
+			<Action selector_logic="core AND helix"				aas="AFILMVWY"/>
+			<Action selector_logic="core AND sheet"				aas="FILMVWY"/>
+			<Action selector_logic="core AND loop"				aas="AFGILMPVWY"/>
+			<Action selector_logic="helix_cap"					aas="KRHQDNST"/>
+		</DesignRestrictions>
+
+
+		<DesignRestrictions name="layer_design_sasa"> # Define residues that are allowed at the different parts of the protein (based on layers definition)
+			<Action selector_logic="surface_sasa AND helix_start"	aas="DEPNQS"/>
+			<Action selector_logic="surface_sasa AND helix"			aas="EHKQR"/>
+			<Action selector_logic="surface_sasa AND sheet"			aas="EHKNQRST"/>
+			<Action selector_logic="surface_sasa AND loop"			aas="DEGHKNPQRST"/>
+			<Action selector_logic="boundary_sasa AND helix_start"	aas="DEPNQS"/>
+			<Action selector_logic="boundary_sasa AND helix"			aas="ADEHIKLMNQRSTV"/>
+			<Action selector_logic="boundary_sasa AND sheet"			aas="DEFHIKLMNQRSTVY"/>
+			<Action selector_logic="boundary_sasa AND loop"			aas="ADEFGHIKLMNPQRSTV"/>
+			<Action selector_logic="core_sasa AND helix_start"		aas="DEPNQS"/>
+			<Action selector_logic="core_sasa AND helix"				aas="AFILMVWY"/>
+			<Action selector_logic="core_sasa AND sheet"				aas="FILMVWY"/>
+			<Action selector_logic="core_sasa AND loop"				aas="AFGILMPVWY"/>
+			<Action selector_logic="helix_cap"					aas="KRHQDNST"/>
+		</DesignRestrictions>
+
+		<ConsensusLoopDesign name="disallow_non_abego_aas"/> # For loop design
+		
+		# Define sets of residues that can be designed independently by movers
+		<!--
+		<OperateOnResidueSubset name="design_core" selector="not_core">
+			<PreventRepackingRLT/>
+		</OperateOnResidueSubset>
+
+		<OperateOnResidueSubset name="design_boundary" selector="not_boundary">
+			<PreventRepackingRLT/>
+		</OperateOnResidueSubset>
+
+		<OperateOnResidueSubset name="design_surface" selector="not_surface">
+			<PreventRepackingRLT/>
+		</OperateOnResidueSubset>
+
+		<OperateOnResidueSubset name="design_interface" selector="not_interface">
+			<PreventRepackingRLT/>
+		</OperateOnResidueSubset>
+
+		<OperateOnResidueSubset name="design_interface_and_helix" selector="not_designable">
+			<PreventRepackingRLT/>
+		</OperateOnResidueSubset>
+
+		<OperateOnResidueSubset name="designable_final" selector="not_designable_final">
+			<PreventRepackingRLT/>
+		</OperateOnResidueSubset>
+		-->
+		<OperateOnResidueSubset name="designable_loops" selector="not_loop_and_around">
+			<PreventRepackingRLT/>
+		</OperateOnResidueSubset>
+
+		<OperateOnResidueSubset name="designable_surface_sasa" selector="not_surface_sasa">
+			<PreventRepackingRLT/>
+		</OperateOnResidueSubset>
+
+	
+
+
+	</TASKOPERATIONS>
+	###############################
+	
+	<MOVE_MAP_FACTORIES>
+		<MoveMapFactory name="fix" bb="false" chi="true" >
+    		<Backbone enable="false" residue_selector="helix" />
+    		<Chi enable="true" residue_selector="helix" />
+    
+		
+    	    
+		</MoveMapFactory>
+	</MOVE_MAP_FACTORIES>
+
+
+	###############################
+	# Define filters for scoring poses, etc...
+	<FILTERS>
+<ResidueCount name="nTRP" max_residue_count="100" min_residue_count="0" residue_types="TRP" confidence="0" />
+		<ResidueCount name="nMET" max_residue_count="100" min_residue_count="0" residue_types="MET" confidence="0" />
+		<ResidueCount name="nALA" max_residue_count="100" min_residue_count="0" residue_types="ALA" confidence="0" />
+		<ResidueCount name="nARG" max_residue_count="100" min_residue_count="0" residue_types="ARG" confidence="0" />
+		<ResidueCount name="nTYR" max_residue_count="100" min_residue_count="0" residue_types="TYR" confidence="0" />
+		<ResidueCount name="nHIS" max_residue_count="100" min_residue_count="0" residue_types="HIS" confidence="0" />
+		<ResidueCount name="nPHE" max_residue_count="100" min_residue_count="0" residue_types="PHE" confidence="0" />
+		
+		<BuriedUnsatHbonds name="buns" use_vsasa="true" only_interface="false" report_all_heavy_atom_unsats="true" report_nonheavy_unsats="true" report_bb_heavy_atom_unsats="true" scorefxn="scrfxn_filter" cutoff="1000" ignore_surface_res="True" print_out_info_to_pdb="true" use_ddG_style="true" dalphaball_sasa="true" probe_radius="1.1" confidence="0" use_sc_neighbors="false" burial_cutoff="0.01"/> 
+
+		<Sasa name="sasa" threshold="0" jump="1"/> 
+
+		<ShapeComplementarity name="shape_comp" min_sc="0" min_interface="0" jump="1" confidence="0" write_int_area="true" write_median_dist="true" residue_selector1="chA" residue_selector2="chB" /> 
+
+		<InterfaceHoles name="holes" jump="1" threshold="0" confidence="0"/> 
+
+		<Ddg name="ddG" scorefxn="scrfxn_filter" threshold="10000" jump="1" repeats="1" repack="false"/>
+
+		<InterfaceBindingEnergyDensityFilter name="energy_dens" sasa_filter="sasa"  ddG_filter="ddG" threshold="100"/>
+
+		<SSPrediction name="psipred" confidence="0" cmd="/home/brunette/src/psipred3.21/runpsipred_single" use_probability="false" use_svm="false"/>
+
+		<NetCharge name="charge_chA" chain="1" confidence="0" />
+		
+		<NetCharge name="charge_chB" chain="2" confidence="0" />
+	</FILTERS>
+
+	<SIMPLE_METRICS>
+		<SequenceMetric name="seq_chA" custom_type="chain_A" output_mode="oneletter" residue_selector="chA" />
+		<SequenceMetric name="seq_chB" custom_type="chain_B" output_mode="oneletter" residue_selector="chB" />		
+	</SIMPLE_METRICS>
+
+	###############################	
+	# Define the stuff that will do stuff to the protein (e.g. changes sequence, geometry, etc...).
+	<MOVERS>
+
+		AddConstraintsToCurrentConformationMover name="add_constraints_CA_buttress" use_distance_cst="false" CA_only="True" residue_selector="buttress_helix"/>
+		AddConstraintsToCurrentConformationMover name="add_constraints_zcon_all" use_distance_cst="false" bb_only="True" cst_weight="10" coord_dev="0.1" residue_selector="zcon_chains"/>
+		AddConstraintsToCurrentConformationMover name="add_constrains_not_loops" use_distance_cst="false" cst_weight="10" residue_selector="loop"/>
+		AddConstraintsToCurrentConformationMover name="add_constraints_to_zcon" use_distance_cst="false" bb_only="True" cst_weight="10" coord_dev="0.1" residue_selector="not_designable_final"/> 
+
+		# Since new helix was generated by superposition of fragments, minimize the backbone (and ALA side chain generated by Rosetta) before doing anything else to avoid crazy energies just in case
+		MinMover name="relax_buttress_helix" scorefxn="scrfxn" chi="True" bb="True" jump="4" cartesian="false" type="dfpmin_armijo_nonmonotone" tolerance="0.01" max_iter="200" />
+
+		MinMover name="relax_loops" scorefxn="scrfxn" chi="True" bb="True" jump="1" cartesian="false" type="dfpmin_armijo_nonmonotone" tolerance="0.01" max_iter="200" />
+
+		# Do a quick re-pack of the newly generated interface before connecting chains
+		PackRotamersMover name="re-pack_interface" nloop="1" scorefxn="scrfxn" task_operations="current,layer_design,design_interface"/>
+
+		<SwitchChainOrder name="re_chain" chain_order="123456"/> # Re-name chains coming out of bundlegrid sampler otherwise loop building crashes
+		<SwitchChainOrder name="re_chain2" chain_order="12"/> # Re-name chains coming out of bundlegrid sampler otherwise loop building crashes
+
+
+		<RunSimpleMetrics name="run_metrics_selection" metrics="seq_chA,seq_chB" />
+		ClearConstraintsMover name="remove_constraints"/>
+		# TJ recommends to use this before connecting chains. Don't know why
+		<StructProfileMover name="genProfile" add_csts_to_pose="1" consider_topN_frags="100" eliminate_background="0" ignore_terminal_residue="1" only_loops="0" burialWt="0" RMSthreshold="0.6" />
+
+		# Connect chains
+		<ConnectChainsMover name="build_loop" chain_connections="[A+D+B+E+C]" loopLengthRange="2,4" allowed_loop_abegos="AGBA,ABBA,AGBBA,ABABA,ABBBA,AGABBA,ABBBBA,AGBBBA" resAdjustmentRangeSide1="-3,3" resAdjustmentRangeSide2="-3,3" RMSthreshold="0.4"/>	
+		ConnectChainsMover name="build_loop2" chain_connections="[A+B,C,D,F]" loopLengthRange="2,4" allowed_loop_abegos="AGBA,ABBA,AGBBA,ABABA,ABBBA,AGABBA,ABBBBA,AGBBBA" resAdjustmentRangeSide1="-3,3" resAdjustmentRangeSide2="-3,3"/>	
+		ConnectChainsMover name="build_loop1" chain_connections="%%loop1_connectivity%%" loopLengthRange="2,4" allowed_loop_abegos="AGBA,ABBA,AGBBA,ABABA,ABBBA,AGABBA,ABBBBA,AGBBBA" resAdjustmentRangeSide1="-2,1" resAdjustmentRangeSide2="-2,1"/>	
+		ConnectChainsMover name="build_loop2" chain_connections="%%loop2_connectivity%%" loopLengthRange="2,4" allowed_loop_abegos="AGBA,ABBA,AGBBA,ABABA,ABBBA,AGABBA,ABBBBA,AGBBBA" resAdjustmentRangeSide1="-2,1" resAdjustmentRangeSide2="-2,1"/>	
+		
+
+	
+      	# On the structures that pass re-looping, do a more thorough design of both the interface and the rest of the helix.
+		<FastDesign name="fast_design" scorefxn="scrfxn" task_operations="current,arochi,layer_design,designable_loops,ex1_ex2,disallow_non_abego_aas" repeats="1" relaxscript="MonomerDesign2019">
+			<MoveMap name="what_moves" bb="false" chi="true" jump="false" />
+			</FastDesign>
+		<FastDesign name="redesign_surface" scorefxn="up_ele" task_operations="current,arochi,layer_design_sasa,designable_surface_sasa,ex1_ex2aro,disallow_non_abego_aas" repeats="1" relaxscript="MonomerDesign2019" >
+			<MoveMap name="what_moves" bb="false" chi="true" jump="false" />
+
+			</FastDesign>
+		AddCompositionConstraintMover name="comp_thuddy" filename="bundle_constraint.comp"/>
+		<MinMover name="min_sc" scorefxn="scrfxn_filter" chi="true" bb="false" jump="ALL" cartesian="false" type="dfpmin_armijo_nonmonotone" tolerance="0.0001" max_iter="200" />
+		<MinMover name="min_all" scorefxn="scrfxn_filter" chi="true" bb="true" jump="ALL" cartesian="false" type="dfpmin_armijo_nonmonotone" tolerance="0.0001" max_iter="200" />
+		
+	</MOVERS>
+	################################
+
+
+	################################
+	# Define in what order the movers are applied
+	<PROTOCOLS>
+	
+		
+		
+
+		Add mover="re_chain"/>
+		<Add mover="build_loop"/> # Build first loop
+		
+
+	
+	
+	</PROTOCOLS>
+	################################
+	
+
+	################################
+	# The scorefunction specified by the OUTPUT tag will be used to score the pose prior to output
+	<OUTPUT scorefxn="scrfxn_filter"> 
+	</OUTPUT>
+	################################
+
+
+</ROSETTASCRIPTS>
+
+

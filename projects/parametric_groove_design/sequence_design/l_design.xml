@@ -1,0 +1,200 @@
+<ROSETTASCRIPTS>
+
+   <SCOREFXNS>
+	   
+	<ScoreFunction name="score_FDE" weights="beta_nov16_cst">
+		<Reweight scoretype="aa_composition" weight="1.0" />
+		<Set aa_composition_setup_file="bundle_constraint.comp" />
+	</ScoreFunction>
+	
+	<ScoreFunction name="natural" weights="beta_nov16"/>
+	
+	<ScoreFunction name="up_ele" weights="beta_nov16"> # for designing surface
+        	<Reweight scoretype="fa_elec" weight="1.4"/>
+        	<Reweight scoretype="hbond_sc" weight="2.0" />
+        	<Reweight scoretype="buried_unsatisfied_penalty" weight="1.0" />
+        	<Reweight scoretype="res_type_constraint" weight="2"/> # Must have this in for loop design
+      	</ScoreFunction>
+
+   </SCOREFXNS>
+
+
+<RESIDUE_SELECTORS>
+
+		<Layer name="surface" select_core="false" select_boundary="false" select_surface="true" use_sidechain_neighbors="true" core_cutoff="3.9" surface_cutoff="3"/> # ASK HUGH FOR GABE's CUTOFF
+		<Layer name="boundary" select_core="false" select_boundary="true" select_surface="false" use_sidechain_neighbors="true" core_cutoff="3.9" surface_cutoff="3"/>
+		<Layer name="core" select_core="true" select_boundary="false" select_surface="false" use_sidechain_neighbors="true" core_cutoff="3.9" surface_cutoff="3"/>
+		
+		
+		<Not name="not_surface" selector="surface" />
+		<Not name="not_boundary" selector="boundary" />
+		<Not name="not_core" selector="core" />
+
+		# SecondaryStructureSelector selects all residues with given secondary structure
+		<SecondaryStructure name="entire_helix" overlap="0" minH="3" minE="2" include_terminal_loops="false" use_dssp="true" ss="H" />
+		<SecondaryStructure name="sheet" overlap="0" minH="3" minE="2" include_terminal_loops="false" use_dssp="true" ss="E" />
+		<SecondaryStructure name="entire_loop" overlap="0" minH="3" minE="2" include_terminal_loops="true" use_dssp="true" ss="L" />
+		
+		<And name="helix_cap" selectors="entire_loop"> # Define a helix cap selection for layer design (C-term)
+			<PrimarySequenceNeighborhood lower="1" upper="0" selector="entire_helix"/>
+		</And>
+		<And name="helix_start" selectors="entire_helix"> # Define a helix start selection for layer design (N-term)
+			<PrimarySequenceNeighborhood lower="0" upper="1" selector="helix_cap"/>
+		</And>
+		<And name="helix" selectors="entire_helix"> # Define helix without its caps
+			<Not selector="helix_start"/>
+		</And>
+		<And name="loop" selectors="entire_loop"> # Define loop without helix caps
+			<Not selector="helix_cap"/>
+		</And>
+
+		<Neighborhood name="around_loop" distance="4.0" selector="entire_loop"/>
+		<Not name="not_around_loop" selector="around_loop"/>
+
+		<Chain name="chA" chains="A"/> # Select chain A from input structure
+
+
+</RESIDUE_SELECTORS>
+
+  <TASKOPERATIONS>
+
+
+		<IncludeCurrent name="current"/> # Tell the packer to also consider the input rotamer.
+		<LimitAromaChi2 name="arochi" /> # Prevents use the rotamers of PHE, TYR and HIS that have chi2 far from 90
+		<ExtraRotamersGeneric name="ex1_ex2" ex1="1" ex2="1"/> # Add increased sampling for chi1 and chi2 rotamers
+		<ExtraRotamersGeneric name="ex1_ex2aro" ex1="1" ex2aro="1"/> # Add increased sampling for chi1 and chi2 rotamers
+		<ExtraRotamersGeneric name="ex1" ex1="1" ex2="0"/> # Add increased sampling for chi1 and chi2 rotamers
+		<DesignRestrictions name="layer_design"> # Define residues that are allowed at the different parts of the protein (based on layers definition)
+			<Action selector_logic="surface AND helix_start"		aas="DEPNQS"/>
+			<Action selector_logic="surface AND helix"			aas="EHKQR"/>
+			<Action selector_logic="surface AND sheet"			aas="EHKNQRST"/>
+			<Action selector_logic="surface AND loop"			aas="DEGHKNPQRST"/>
+			<Action selector_logic="boundary AND helix_start"		aas="PNQS"/>
+			<Action selector_logic="boundary AND helix"			aas="ADEHIKLMNQRSTV"/>
+			<Action selector_logic="boundary AND sheet"			aas="DEFHIKLMNQRSTVY"/>
+			<Action selector_logic="boundary AND loop"			aas="ADEFGHIKLMNPQRSTV"/>
+			<Action selector_logic="core AND helix_start"			aas="PNQS"/>
+			<Action selector_logic="core AND helix"				aas="AFILMVWY"/>
+			<Action selector_logic="core AND sheet"				aas="FILMVWY"/>
+			<Action selector_logic="core AND loop"				aas="AFGILMPVWY"/>
+			<Action selector_logic="helix_cap"				aas="KRHQDNS"/>
+		</DesignRestrictions>
+	
+		<ConsensusLoopDesign name="disallow_non_abego_aas"/>
+		<OperateOnResidueSubset name="design_surface" selector="not_surface">
+			<PreventRepackingRLT/>
+		</OperateOnResidueSubset>
+
+
+
+   </TASKOPERATIONS>
+
+<FILTERS>
+		<ResidueCount name="nTRP" max_residue_count="100" min_residue_count="0" residue_types="TRP" confidence="0" />
+		<ResidueCount name="nMET" max_residue_count="100" min_residue_count="0" residue_types="MET" confidence="0" />
+		<ResidueCount name="nALA" max_residue_count="100" min_residue_count="0" residue_types="ALA" confidence="0" />
+		<ResidueCount name="nARG" max_residue_count="100" min_residue_count="0" residue_types="ARG" confidence="0" />
+		<ResidueCount name="nTYR" max_residue_count="100" min_residue_count="0" residue_types="TYR" confidence="0" />
+		<ResidueCount name="nHIS" max_residue_count="100" min_residue_count="0" residue_types="HIS" confidence="0" />
+		<ResidueCount name="nPHE" max_residue_count="100" min_residue_count="0" residue_types="PHE" confidence="0" />
+		
+		<BuriedUnsatHbonds name="buns" use_vsasa="true" only_interface="false" report_all_heavy_atom_unsats="true" report_nonheavy_unsats="true" report_bb_heavy_atom_unsats="true" scorefxn="natural" cutoff="1000" ignore_surface_res="True" print_out_info_to_pdb="true" use_ddG_style="true" dalphaball_sasa="true" probe_radius="1.1" confidence="0" use_sc_neighbors="false" burial_cutoff="0.01"/> 
+
+		<Sasa name="sasa" threshold="0" jump="1"/> 
+
+
+		<SSPrediction name="psipred" confidence="0" cmd="/home/brunette/src/psipred3.21/runpsipred_single" use_probability="false" use_svm="false"/>
+		<NetCharge name="charge_chA" chain="1" confidence="0" />
+		
+		  # holes score only around h-bond networks
+		<Holes name="holes_old" threshold="1.8" confidence="0"/>
+		<ExposedHydrophobics name="exposed_hydrophobics_old" />
+		<PackStat name="packstat_all" threshold="0" chain="0"/>
+
+
+		<ScoreType name="total_score" scorefxn="natural" confidence="0" threshold="999"/>
+                <ResidueCount name="res_count_all" max_residue_count="9999" confidence="0"/>
+                <CalculatorFilter name="score_per_res" equation="total_score / res" threshold="-2.0" confidence="1">
+                                <Var name="total_score" filter="total_score"/>
+                                <Var name="res" filter="res_count_all"/>
+                </CalculatorFilter>
+                SSPrediction name="psipred_conf" confidence="0" cmd="/home/brunette/src/psipred3.21/runpsipred_single" use_probability="1" use_svm="false"/>
+                <BuriedSurfaceArea name="buried_npsa_FAMILYVW" select_only_FAMILYVW="True" atom_mode="all_atoms" confidence="0.0" />
+                <CalculatorFilter name="buried_npsa_FAMILYVW_per_res" confidence="0" equation="buried_npsa_FAMILYVW/NRES" threshold="50">
+                        <Var name="buried_npsa_FAMILYVW" filter_name="buried_npsa_FAMILYVW"/>
+                        <Var name="NRES" filter_name="res_count_all"/>
+                </CalculatorFilter>
+                <Holes confidence="0" name="holes" threshold="99.0"/>
+                <BuriedUnsatHbonds name="buns_all" use_sc_neighbors="false" use_reporter_behavior="true" report_all_unsats="true"  ignore_surface_res="true" print_out_info_to_pdb="true" confidence="0"/>
+
+
+		<TotalSasa name="exposed_hydrophobics" confidence="0" hydrophobic="True" />
+		<worst9mer name="worst9mer" confidence="0" />
+
+</FILTERS>
+
+	<SIMPLE_METRICS>
+		<SequenceMetric name="seq_chA" custom_type="chain_A" output_mode="oneletter" residue_selector="chA" />
+	</SIMPLE_METRICS>
+
+
+
+   <MOVERS>
+		DumpPdb name="after_fde" fname="after_fde.pdb" tag_time="false" scorefxn="natural"/> # For de-bugging
+		<StructProfileMover name="genProfile" add_csts_to_pose="1" consider_topN_frags="100" eliminate_background="0" ignore_terminal_residue="1" only_loops="0" burialWt="0" RMSthreshold="0.6" />
+		<FastDesign name="FDE" scorefxn="score_FDE" task_operations="current,arochi,layer_design,ex1,disallow_non_abego_aas" repeats="1" relaxscript="MonomerDesign2019" >
+			<MoveMap name="what_moves" bb="true" chi="true" jump="true" />
+		</FastDesign>
+
+		<MinMover name="min_sc" scorefxn="natural" chi="true" bb="false" jump="ALL" cartesian="false" type="dfpmin_armijo_nonmonotone" tolerance="0.0001" max_iter="200" />
+		<MinMover name="min_all" scorefxn="natural" chi="true" bb="true" jump="ALL" cartesian="false" type="dfpmin_armijo_nonmonotone" tolerance="0.0001" max_iter="200" />
+		<PackRotamersMover name="redesign_surface" scorefxn="up_ele" task_operations="current,arochi,layer_design,disallow_non_abego_aas,design_surface"/>
+
+		<RunSimpleMetrics name="run_metrics_selection" metrics="seq_chA" />
+   </MOVERS>
+<PROTOCOLS>
+		<Add mover_name="genProfile"/>
+		<Add mover_name="FDE"/>
+		
+		<Add mover_name="redesign_surface"/>
+		<Add mover_name="min_sc"/>
+		<Add mover_name="min_all"/>
+
+		<Add mover_name="run_metrics_selection" />
+
+		<Add filter="nTRP" /> 
+		<Add filter="nTYR" /> 
+		<Add filter="nALA" /> 
+		<Add filter="nMET" /> 
+		<Add filter="nARG" /> 
+		<Add filter="nHIS" /> 
+		<Add filter="buns"/>
+
+		<Add filter_name="total_score" />
+                Add filter_name="score_per_res" />
+		<Add filter_name="buried_npsa_FAMILYVW" />
+                <Add filter_name="buried_npsa_FAMILYVW_per_res" />
+                <Add filter_name="holes" />
+		<Add filter_name="exposed_hydrophobics" />
+		<Add filter_name="exposed_hydrophobics_old" />
+		<Add filter_name="buns_all" />
+		<Add filter_name="worst9mer" />
+
+
+		<Add filter="holes_old"/>
+		<Add filter="psipred"/>
+		<Add filter="charge_chA"/>
+		<Add filter="packstat_all" />
+</PROTOCOLS>
+
+
+	# The scorefunction specified by the OUTPUT tag will be used to score the pose prior to output
+	<OUTPUT scorefxn="natural"> 
+	</OUTPUT>
+
+
+
+
+         </ROSETTASCRIPTS>
+
+

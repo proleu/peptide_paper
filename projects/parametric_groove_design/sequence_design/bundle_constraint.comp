@@ -1,0 +1,64 @@
+# This is a .comp file for requiring that a structure be ten percent aromatic.
+# File created 21 July 2015 by Vikram K. Mulligan (vmullig@uw.edu), Baker laboratory.
+
+PENALTY_DEFINITION
+TYPE MET                    #We're counting alanines
+FRACTION 0.010
+FRACT_DELTA_START -0.005            #The start of the range of penalty values that we're specifiying is 1 less than the desired number
+FRACT_DELTA_END 0.01                 #The end of the range of penalty values that we're specifiying is 1 more than the desired number
+PENALTIES 0 3.0 3.0           #These are the penalties for having 1 less alanine than desired, the desired number, and one more alanine than desired.
+BEFORE_FUNCTION CONSTANT    #If we have less than 1 fewer alanines than desired, the penalties remain constant (at zero).
+AFTER_FUNCTION QUADRATIC    #If we have more than 1 more alanine than desired, the penalties ramp up quadratically.
+END_PENALTY_DEFINITION
+
+
+PENALTY_DEFINITION
+TYPE ALA                    #We're counting alanines
+FRACTION 0.10
+FRACT_DELTA_START -0.02            #The start of the range of penalty values that we're specifiying is 1 less than the desired number
+FRACT_DELTA_END 0.02                 #The end of the range of penalty values that we're specifiying is 1 more than the desired number
+PENALTIES 0 3.0 3.0           #These are the penalties for having 1 less alanine than desired, the desired number, and one more alanine than desired.
+BEFORE_FUNCTION CONSTANT    #If we have less than 1 fewer alanines than desired, the penalties remain constant (at zero).
+AFTER_FUNCTION QUADRATIC    #If we have more than 1 more alanine than desired, the penalties ramp up quadratically.
+END_PENALTY_DEFINITION
+
+PENALTY_DEFINITION
+TYPE ARG                    #We're counting alanines
+FRACTION .01
+FRACT_DELTA_START -.01            #The start of the range of penalty values that we're specifiying is 1 less than the desired number
+FRACT_DELTA_END .01                 #The end of the range of penalty values that we're specifiying is 1 more than the desired number
+PENALTIES 0 5.0 6.0           #These are the penalties for having 1 less alanine than desired, the desired number, and one more alanine than desired.
+BEFORE_FUNCTION CONSTANT    #If we have less than 1 fewer alanines than desired, the penalties remain constant (at zero).
+AFTER_FUNCTION QUADRATIC    #If we have more than 1 more alanine than desired, the penalties ramp up quadratically.
+END_PENALTY_DEFINITION
+
+PENALTY_DEFINITION
+TYPE LYS                    #We're counting alanines
+FRACTION .15
+FRACT_DELTA_START -.01            #The start of the range of penalty values that we're specifiying is 1 less than the desired number
+FRACT_DELTA_END .01                 #The end of the range of penalty values that we're specifiying is 1 more than the desired number
+PENALTIES 0 2.0 3.0           #These are the penalties for having 1 less alanine than desired, the desired number, and one more alanine than desired.
+BEFORE_FUNCTION CONSTANT    #If we have less than 1 fewer alanines than desired, the penalties remain constant (at zero).
+AFTER_FUNCTION QUADRATIC    #If we have more than 1 more alanine than desired, the penalties ramp up quadratically.
+END_PENALTY_DEFINITION
+
+PENALTY_DEFINITION
+TYPE PHE                    #We're counting alanines
+FRACTION 0.024
+FRACT_DELTA_START -0.005            #The start of the range of penalty values that we're specifiying is 1 less than the desired number
+FRACT_DELTA_END 0.01                 #The end of the range of penalty values that we're specifiying is 1 more than the desired number
+PENALTIES 0 2.2 2.3           #These are the penalties for having 1 less alanine than desired, the desired number, and one more alanine than desired.
+BEFORE_FUNCTION CONSTANT    #If we have less than 1 fewer alanines than desired, the penalties remain constant (at zero).
+AFTER_FUNCTION QUADRATIC    #If we have more than 1 more alanine than desired, the penalties ramp up quadratically.
+END_PENALTY_DEFINITION
+
+PENALTY_DEFINITION
+TYPE TRP                    #We're counting alanines
+FRACTION 0.04
+FRACT_DELTA_START -0.005            #The start of the range of penalty values that we're specifiying is 1 less than the desired number
+FRACT_DELTA_END 0.01                 #The end of the range of penalty values that we're specifiying is 1 more than the desired number
+PENALTIES 0 2.2 2.3           #These are the penalties for having 1 less alanine than desired, the desired number, and one more alanine than desired.
+BEFORE_FUNCTION CONSTANT    #If we have less than 1 fewer alanines than desired, the penalties remain constant (at zero).
+AFTER_FUNCTION QUADRATIC    #If we have more than 1 more alanine than desired, the penalties ramp up quadratically.
+END_PENALTY_DEFINITION
+

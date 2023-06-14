@@ -1,0 +1,31 @@
+-parser:protocol loop.xml
+
+#-in:ignore_unrecognized_res True 
+#-in:ignore_waters True 
+#-in:file:fullatom True 
+
+-out:overwrite 
+#-out:pdb True
+#-out:mute all 
+#-out:prefix designed_
+#-out:file:scorefile_format json 
+#-out:file:fullatom True 
+-out:file:renumber_pdb True 
+-out:file:per_chain_renumbering True 
+#-out:file:set_pdb_author Basile,Wicky 
+#-out:file:write_pdb_parametric_info True 
+
+-out:path:pdb output_structures/
+-out:path:score scores/
+
+#-run:version True 
+#-run:preserve_header True 
+
+#-score:weights beta_nov16 
+
+-corrections:beta_nov16 True
+
+
+-holes:dalphaball /home/norn/software/DAlpahBall/DAlphaBall.gcc
+# For loop design
+-indexed_structure_store:fragment_store /home/brunette/DBs/hdf5/ss_grouped_vall_helix_shortLoop.h5

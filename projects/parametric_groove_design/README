@@ -1,0 +1,8 @@
+Notebooks/code/scripts for parametric design of groove-shaped helical scaffolds, consisting of 3 helix groove with 2 buttressing helices
+Isaac Lutz (ilutz@uw.edu, isaacdlutz@gmail.com)
+
+See groove_generation.ipynb for parametric sampling of groove-shaped helical bundle scaffolds
+
+See loop_closure folder for looping parametric groove scaffolds
+
+See sequence_design folder and filter_groove_scaffolds.ipynb for sequence design and filtering of parametric groove scaffolds

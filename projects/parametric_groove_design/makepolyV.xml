@@ -1,0 +1,22 @@
+<ROSETTASCRIPTS>
+
+	<SCOREFXNS>
+		 <ScoreFunction name="beta" weights="beta">
+  		</ScoreFunction>
+	</SCOREFXNS>
+	<RESIDUE_SELECTORS>
+	</RESIDUE_SELECTORS>
+	<TASKOPERATIONS>
+	</TASKOPERATIONS>
+	<FILTERS>
+	</FILTERS>
+	<MOVERS>
+		<MakePolyX name="polyV" aa="VAL" keep_pro="0"  keep_gly="0" keep_disulfide_cys="0" />
+	</MOVERS>
+	<APPLY_TO_POSE>
+	</APPLY_TO_POSE>
+	<PROTOCOLS>
+		<Add mover_name="polyV"/>
+	</PROTOCOLS>
+</ROSETTASCRIPTS>
+
