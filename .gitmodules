@@ -1,0 +1,9 @@
+[submodule "proteinmpnn"]
+	path = proteinmpnn
+	url = https://git.ipd.uw.edu/justas/proteinmpnn.git
+[submodule "superfold"]
+	path = superfold
+	url = git@github.com:rdkibler/superfold.git
+[submodule "proteininpainting"]
+	path = proteininpainting
+	url = https://git.ipd.uw.edu/jwatson3/proteininpainting.git
